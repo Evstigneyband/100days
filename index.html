@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>100 дней — Supabase sync</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;display:flex;flex-direction:column;align-items:center;margin:0;padding:0 10px;min-height:100vh;background:#f5f5f5;box-sizing:border-box}
+    h1{margin:20px 0 10px}
+    #counter{font-size:5rem;margin:10px 0}
+    #todayDate{margin-bottom:20px;font-size:1.1rem;color:#555}
+    .buttons{display:flex;gap:12px;margin-bottom:20px}
+    button{padding:12px 24px;font-size:1.15rem;border:none;border-radius:8px;cursor:pointer;background:#007BFF;color:#fff;transition:background .3s}
+    button:hover{background:#0056b3}
+    button:disabled{background:#6c757d;cursor:not-allowed}
+    #challengeSection{display:none;width:100%;max-width:720px}
+    .activities{display:flex;flex-direction:column;gap:8px;width:100%;max-width:420px;margin-bottom:20px}
+    .activity-row{display:flex;justify-content:space-between;align-items:center}
+    .activity-row label{flex:1 1 auto;margin-right:10px}
+    .activity-row select{width:80px;padding:4px;font-size:1rem}
+    #percent{font-size:1.2rem;font-weight:600;margin:10px 0 20px;align-self:flex-start}
+    table{border-collapse:collapse;width:100%;max-width:720px;margin-bottom:40px;background:#fff}
+    th,td{border:1px solid #ccc;padding:6px 8px;text-align:center;font-size:.95rem}
+    th{background:#e9e9e9}
+    tr:nth-child(even){background:#fafafa}
+    tfoot td{font-weight:700;background:#f0f0f0}
+  </style>
+</head>
+<body>
+<h1>Челлендж 100 дней</h1>
+<div id="counter" style="display:none;">100</div>
+<div id="todayDate"></div>
+<div class="buttons">
+  <button id="startBtn">Start</button>
+  <button id="stopBtn" style="display:none;">Остановить</button>
+</div>
+
+<div id="challengeSection">
+  <div class="activities" id="activities">
+    <div class="activity-row"><label>Евстигней свои песни</label><select id="sel1"></select></div>
+    <div class="activity-row"><label>Евстигней кавера</label><select id="sel2"></select></div>
+    <div class="activity-row"><label>VOZDUH продажи</label><select id="sel3"></select></div>
+    <div class="activity-row"><label>VOZDUH продакшн</label><select id="sel4"></select></div>
+    <div class="activity-row"><label>сербский язык</label><select id="sel5"></select></div>
+    <div class="activity-row"><label>личные</label><select id="sel6"></select></div>
+    <div class="activity-row"><label>спорт</label><select id="sel7"></select></div>
+  </div>
+  <div id="percent">0 %</div>
+  <table id="historyTbl" style="display:none"></table>
+</div>
+
+<script type="module">
+/* ====== Supabase init ====== */
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+const SUPABASE_URL = "https://kubjftkcofdibtcbcivt.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YmpmdGtjb2ZkaWJ0Y2JjaXZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzODUyNzcsImV4cCI6MjA2Mzk2MTI3N30.pfljOMGLfRvhtnQ6D2tSgm_AMrOVwMja1uI3T6TTub8";
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+const TABLE="challenge_state", ROW_ID=1;
+
+/* ====== Config ====== */
+const UNIT_MS = 86400000,                     // 1 день
+      MAX_UNITS = 100,
+      LABELS=["Евстигней свои песни","Евстигней кавера","VOZDUH продажи","VOZDUH продакшн","сербский язык","личные","спорт"];
+const ZERO_ACT = () => ({sel1:0,sel2:0,sel3:0,sel4:0,sel5:0,sel6:0,sel7:0});
+const DEFAULT_STATE = () => ({challengeStart:null,lastUnitIndex:null,activities:ZERO_ACT(),history:{}});
+
+/* ====== DOM refs ====== */
+const $=id=>document.getElementById(id);
+const counterEl=$("counter"),startBtn=$("startBtn"),stopBtn=$("stopBtn"),percentEl=$("percent"),todayEl=$("todayDate"),historyTbl=$("historyTbl"),section=$("challengeSection");
+function fillSelects(){const opts=Array.from({length:13},(_,i)=>`<option value="${i}">${i}</option>`).join('');document.querySelectorAll('#activities select').forEach(s=>s.innerHTML=opts);} 
+
+/* ====== State helpers ====== */
+let state=DEFAULT_STATE();
+const normalize=s=>{const base=DEFAULT_STATE();return {...base,...s,activities:{...base.activities,...(s.activities||{})},history:s.history||{}}};
+
+/* ====== Supabase IO ====== */
+async function loadState(){try{const {data,error}=await sb.from(TABLE).select('state').eq('id',ROW_ID).maybeSingle();if(error)throw error;if(data?.state)state=normalize(data.state);else await sb.from(TABLE).insert([{id:ROW_ID,state}]);}catch(e){console.error(e);}}
+async function saveState(){try{await sb.from(TABLE).upsert({id:ROW_ID,state});}catch(e){console.error(e);}}
+function realtime(){sb.channel('challenge').on('postgres_changes',{event:'UPDATE',schema:'public',table:TABLE,filter:`id=eq.${ROW_ID}`},p=>{state=normalize(p.new.state);render();}).subscribe();}
+
+/* ====== Time helpers ====== */
+const idxNow=()=>state.challengeStart===null?null:Math.floor((Date.now()-state.challengeStart)/UNIT_MS);
+const labelOf=i=>new Date(state.challengeStart+i*UNIT_MS).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'});
+const hours=v=>Object.values(v).reduce((a,b)=>a+ +b,0);
+
+/* ====== Logic ====== */
+function addRow(l,d){state.history[l]=d;}
+function catchUp(){if(state.challengeStart===null)return;const now=Math.min(idxNow(),MAX_UNITS-1);if(state.lastUnitIndex===null){state.lastUnitIndex=now;return;}if(now>state.lastUnitIndex){if(!state.history[labelOf(state.lastUnitIndex)])addRow(labelOf(state.lastUnitIndex),{...state.activities});for(let u=state.lastUnitIndex+1;u<=now;u++)addRow(labelOf(u),ZERO_ACT());state.activities=ZERO_ACT();state.lastUnitIndex=now;}}
+function rollover(){if(state.challengeStart===null)return;const i=Math.min(idxNow(),MAX_UNITS);if(state.lastUnitIndex===null)state.lastUnitIndex=i;if(i>state.lastUnitIndex){addRow(labelOf(state.lastUnitIndex),{...state.activities});for(let u=state.lastUnitIndex+1;u<i;u++)addRow(labelOf(u),ZERO_ACT());state.activities=ZERO_ACT();state.lastUnitIndex=i;saveState();}if(i>=MAX_UNITS){state.challengeStart=null;saveState();}}
+
+/* ====== Render ====== */
+function render(){const i=idxNow(),left=state.challengeStart!==null?Math.max(0,MAX_UNITS-i):null;if(state.challengeStart!==null){counterEl.textContent=left;counterEl.style.display='block';stopBtn.style.display='inline-block';startBtn.style.display='none';section.style.display='block';}else{counterEl.style.display='none';stopBtn.style.display='none';startBtn.style.display='inline-block';section.style.display=Object.keys(state.history).length?'block':'none';}for(let k=1;k<=7;k++)$("sel"+k).value=state.activities['sel'+k];percentEl.textContent=Math.round(hours(state.activities)/12*100)+' %';renderHistory();}
+function renderHistory(){const ks=Object.keys(state.history);if(!ks.length){historyTbl.style.display='none';return;}historyTbl.style.display='table';let html='<thead><tr><th>Дата</th>'+LABELS.map(l=>`<th>${l}</th>`).join('')+'<th>Итого</th><th>%</th></tr></thead><tbody>';const sorted=[...ks].sort((a,b)=>new Date(a)-new Date(b));let total=0;sorted.forEach(l=>{const row=state.history[l];const sum=hours(row);total+=sum;html+=`<tr><td>${l}</td>`+LABELS.map((_x,i)=>`<td>${row['sel'+(i+1)]??0}</td>`).join('')+`<td>${sum}</td><td>${Math.round(sum/12*100)}%</td></tr>`;});html+='</tbody>';html+=`<tfoot><tr><td colspan="${LABELS.length+2}">Итоговый % (из 100 дней)</td><td>${Math.round(total/(MAX_UNITS*12)*1000)/10}%</td></tr></tfoot>`;historyTbl.innerHTML=html;}
+
+/* ====== Events ====== */
+function attach(){startBtn.addEventListener('click',async()=>{state=normalize({challengeStart:Date.now(),lastUnitIndex:0});await saveState();render();});stopBtn.addEventListener('click',async()=>{state=DEFAULT_STATE();await saveState();render();});document.querySelectorAll('#activities select').forEach((s,idx)=>s.addEventListener('change',async()=>{state.activities['sel'+(idx+1)]=parseInt(s.value,10);percentEl.textContent=Math.round(hours(state.activities)/12*100)+' %';await saveState();}));}
+
+/* ====== Boot ====== */
+fillSelects();
+await loadState();
+catchUp();
+render();
+attach();
+realtime();
+setInterval(()=>{if(state.challengeStart!==null){rollover();render();}todayEl.textContent=new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});},60000); // минутный тик достаточно для суточного отслеживания
+</script>
+</body>
+</html>
