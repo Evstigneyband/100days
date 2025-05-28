@@ -3,17 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>100 дней — Supabase sync</title>
+  <title>100 дней — Supabase sync</title>
   <style>
     body{font-family:Arial,Helvetica,sans-serif;display:flex;flex-direction:column;align-items:center;margin:0;padding:0 10px;min-height:100vh;background:#f5f5f5;box-sizing:border-box}
     h1{margin:20px 0 10px}
     #counter{font-size:5rem;margin:10px 0}
     #todayDate{margin-bottom:20px;font-size:1.1rem;color:#555}
     .buttons{display:flex;gap:12px;margin-bottom:20px}
-    button{padding:12px 24px;font-size:1.15rem;border:none;border-radius:8px;cursor:pointer;background:#007BFF;color:#fff;transition:background .3s}
+    button{padding:12px 24px;font-size:1.1rem;border:none;border-radius:8px;cursor:pointer;background:#007BFF;color:#fff;transition:background .3s}
     button:hover{background:#0056b3}
     button:disabled{background:#6c757d;cursor:not-allowed}
 
+    /* ‑‑‑ hamburger menu ‑‑‑ */
+    #menu{position:absolute;top:12px;right:12px;display:none}
+    #hamburger{font-size:1.8rem;cursor:pointer;user-select:none}
+    #dropdown{display:none;flex-direction:column;gap:6px;background:#fff;border:1px solid #ccc;border-radius:6px;padding:8px;box-shadow:0 2px 6px rgba(0,0,0,.15);position:absolute;top:36px;right:0;z-index:100}
+    #dropdown button{background:#dc3545}
+    #dropdown button:hover{background:#bb2d3b}
+
+    /* основная таблица и формы */
     #challengeSection{display:none;width:100%;max-width:760px}
     .activities{display:flex;flex-direction:column;gap:8px;width:100%;margin-bottom:20px}
     .activity-row{display:grid;grid-template-columns:1fr 60px 110px 30px;align-items:center;column-gap:8px}
@@ -32,12 +40,19 @@
   </style>
 </head>
 <body>
-<h1>Челлендж 100 дней</h1>
+<h1>Челлендж 100 дней</h1>
+<!-- hamburger menu -->
+<div id="menu">
+  <span id="hamburger">☰</span>
+  <div id="dropdown">
+    <button id="stopBtn">Остановить</button>
+  </div>
+</div>
+
 <div id="counter" style="display:none;">100</div>
 <div id="todayDate"></div>
 <div class="buttons">
   <button id="startBtn">Start</button>
-  <button id="stopBtn" style="display:none;">Остановить</button>
 </div>
 
 <div id="challengeSection">
@@ -50,59 +65,59 @@
     <div class="activity-row"><label>личные</label><span class="goal">2 ч</span><select id="sel6"></select><span id="st6" class="status red">❌</span></div>
     <div class="activity-row"><label>спорт</label><span class="goal">1 ч</span><select id="sel7"></select><span id="st7" class="status red">❌</span></div>
   </div>
-  <div id="percent">0 %</div>
+  <div id="percent">0 %</div>
   <table id="historyTbl" style="display:none"></table>
 </div>
 
 <script type="module">
-/***** Supabase *****/
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 const SUPABASE_URL="https://kubjftkcofdibtcbcivt.supabase.co";
 const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YmpmdGtjb2ZkaWJ0Y2JjaXZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzODUyNzcsImV4cCI6MjA2Mzk2MTI3N30.pfljOMGLfRvhtnQ6D2tSgm_AMrOVwMja1uI3T6TTub8";
 const sb=createClient(SUPABASE_URL,SUPABASE_KEY);
 const TABLE="challenge_state",ROW_ID=1;
-/***** Config *****/
 const DAY_MS=86400000,MAX_UNITS=100;
 const LABELS=["Евстигней свои песни","Евстигней кавера","VOZDUH продажи","VOZDUH продакшн","сербский язык","личные","спорт"];
 const GOALS=[2,2,2,2,1,2,1];
 const ZERO=()=>({sel1:0,sel2:0,sel3:0,sel4:0,sel5:0,sel6:0,sel7:0});
 const DEFAULT_STATE=()=>({challengeStart:null,lastUnitIndex:null,activities:ZERO(),history:{}});
-/***** DOM *****/
+
+/* DOM refs */
 const $=id=>document.getElementById(id);
-const counterEl=$("counter"),startBtn=$("startBtn"),stopBtn=$("stopBtn"),percentEl=$("percent"),todayEl=$("todayDate"),historyTbl=$("historyTbl"),section=$("challengeSection");
+const counterEl=$("counter"),startBtn=$("startBtn"),stopBtn=$("stopBtn"),hamburger=$("hamburger"),dropdown=$("dropdown"),menu=$("menu"),percentEl=$("percent"),todayEl=$("todayDate"),historyTbl=$("historyTbl"),section=$("challengeSection");
 function fillSelects(){const opts=Array.from({length:13},(_,i)=>`<option value="${i}">${i}</option>`).join('');document.querySelectorAll('#activities select').forEach(s=>s.innerHTML=opts);} 
 function showDate(){todayEl.textContent=new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});} 
-/***** State helpers *****/
+
+/* State */
 let state=DEFAULT_STATE();
-const normalize=s=>{const base=DEFAULT_STATE();return {...base,...s,activities:{...base.activities,...(s.activities||{})},history:s.history||{}}};
-/***** Supabase IO *****/
-async function loadState(){try{const {data,error}=await sb.from(TABLE).select('state').eq('id',ROW_ID).maybeSingle();if(error)throw error;if(data?.state)state=normalize(data.state);else await sb.from(TABLE).insert([{id:ROW_ID,state}]);}catch(e){console.error(e);} }
-async function saveState(){try{await sb.from(TABLE).upsert({id:ROW_ID,state});}catch(e){console.error(e);} }
-function realtime(){sb.channel('challenge').on('postgres_changes',{event:'UPDATE',schema:'public',table:TABLE,filter:`id=eq.${ROW_ID}`},p=>{state=normalize(p.new.state);render();}).subscribe();}
-/***** Time helpers *****/
-const idx=()=>state.challengeStart===null?null:Math.floor((Date.now()-state.challengeStart)/DAY_MS);
+const normalize=s=>{const b=DEFAULT_STATE();return {...b,...s,activities:{...b.activities,...(s.activities||{})},history:s.history||{}}};
+
+async function loadState(){const {data,error}=await sb.from(TABLE).select('state').eq('id',ROW_ID).maybeSingle();if(error)console.error(error);if(data?.state)state=normalize(data.state);}
+const saveState=()=>sb.from(TABLE).upsert({id:ROW_ID,state});
+
+function idx(){return state.challengeStart===null?null:Math.floor((Date.now()-state.challengeStart)/DAY_MS);} 
 const labelOf=i=>new Date(state.challengeStart+i*DAY_MS).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'});
-/***** Logic *****/
-function addRow(lbl,obj){state.history[lbl]=obj;}
+
+function addRow(l,d){state.history[l]=d;}
 function catchUp(){if(state.challengeStart===null)return;const now=Math.min(idx(),MAX_UNITS-1);if(state.lastUnitIndex===null){state.lastUnitIndex=now;return;}if(now>state.lastUnitIndex){if(!state.history[labelOf(state.lastUnitIndex)])addRow(labelOf(state.lastUnitIndex),{...state.activities});for(let u=state.lastUnitIndex+1;u<=now;u++)addRow(labelOf(u),ZERO());state.activities=ZERO();state.lastUnitIndex=now;}}
 function rollover(){if(state.challengeStart===null)return;const cur=Math.min(idx(),MAX_UNITS);if(state.lastUnitIndex===null)state.lastUnitIndex=cur;if(cur>state.lastUnitIndex){addRow(labelOf(state.lastUnitIndex),{...state.activities});for(let u=state.lastUnitIndex+1;u<cur;u++)addRow(labelOf(u),ZERO());state.activities=ZERO();state.lastUnitIndex=cur;saveState();}if(cur>=MAX_UNITS){state.challengeStart=null;saveState();}}
-function updateStatusAndPercent(){let done=0;for(let i=1;i<=7;i++){const v=state.activities['sel'+i]||0,constIcon=$("st"+i);if(v>=GOALS[i-1]){constIcon.textContent='✅';constIcon.className='status green';done++;}else{constIcon.textContent='❌';constIcon.className='status red';}}percentEl.textContent=Math.round(done/7*100)+' %';}
-/***** Render *****/
-function render(){const left=state.challengeStart!==null?Math.max(0,MAX_UNITS-idx()):null;if(state.challengeStart!==null){counterEl.textContent=left;counterEl.style.display='block';stopBtn.style.display='inline-block';startBtn.style.display='none';section.style.display='block';}else{counterEl.style.display='none';stopBtn.style.display='none';startBtn.style.display='inline-block';section.style.display=Object.keys(state.history).length?'block':'none';}
-LABELS.forEach((_l,i)=>$("sel"+(i+1)).value=state.activities['sel'+(i+1)]);
-updateStatusAndPercent();
-renderHistory();
-showDate();}
+
+function updateStatusAndPercent(){let done=0;for(let i=1;i<=7;i++){const v=state.activities['sel'+i]||0;const icon=$("st"+i);if(v>=GOALS[i-1]){icon.textContent='✅';icon.className='status green';done++;}else{icon.textContent='❌';icon.className='status red';}}percentEl.textContent=Math.round(done/7*100)+' %';}
+
+function render(){const left=state.challengeStart!==null?Math.max(0,MAX_UNITS-idx()):null;menu.style.display=state.challengeStart!==null?'block':'none';dropdown.style.display='none';
+  if(state.challengeStart!==null){counterEl.textContent=left;counterEl.style.display='block';startBtn.style.display='none';section.style.display='block';}
+  else{counterEl.style.display='none';startBtn.style.display='inline-block';section.style.display=Object.keys(state.history).length?'block':'none';}
+  LABELS.forEach((_l,i)=>$("sel"+(i+1)).value=state.activities['sel'+(i+1)]);
+  updateStatusAndPercent();renderHistory();showDate();}
+
 function renderHistory(){const ks=Object.keys(state.history);if(!ks.length){historyTbl.style.display='none';return;}historyTbl.style.display='table';let html='<thead><tr><th>Дата</th>'+LABELS.map(l=>`<th>${l}</th>`).join('')+'<th>%</th></tr></thead><tbody>';const sorted=[...ks].sort((a,b)=>new Date(a)-new Date(b));sorted.forEach(lbl=>{const row=state.history[lbl];let done=0;LABELS.forEach((_x,i)=>{if((row['sel'+(i+1)]||0)>=GOALS[i])done++;});html+=`<tr><td>${lbl}</td>`+LABELS.map((_x,i)=>`<td>${row['sel'+(i+1)]??0}</td>`).join('')+`<td>${Math.round(done/7*100)}%</td></tr>`;});html+='</tbody>';historyTbl.innerHTML=html;}
-/***** Events *****/
-function attach(){startBtn.addEventListener('click',async()=>{state=normalize({challengeStart:Date.now(),lastUnitIndex:0});await saveState();render();});stopBtn.addEventListener('click',async()=>{state=DEFAULT_STATE();await saveState();render();});document.querySelectorAll('#activities select').forEach((s,idx)=>s.addEventListener('change',async()=>{state.activities['sel'+(idx+1)]=parseInt(s.value,10);updateStatusAndPercent();await saveState();}));}
-/***** Boot *****/
+
+function attach(){startBtn.addEventListener('click',async()=>{state=normalize({challengeStart:Date.now(),lastUnitIndex:0});await saveState();render();});stopBtn.addEventListener('click',async()=>{state=DEFAULT_STATE();await saveState();render();});hamburger.addEventListener('click',()=>{dropdown.style.display=dropdown.style.display==='flex'?'none':'flex';});document.addEventListener('click',e=>{if(!menu.contains(e.target))dropdown.style.display='none';});document.querySelectorAll('#activities select').forEach((s,idx)=>s.addEventListener('change',async()=>{state.activities['sel'+(idx+1)]=parseInt(s.value,10);updateStatusAndPercent();await saveState();}));}
+
 fillSelects();
 await loadState();
 catchUp();
 render();
 attach();
-realtime();
 setInterval(()=>{if(state.challengeStart!==null){rollover();render();}},60000);
 </script>
 </body>
