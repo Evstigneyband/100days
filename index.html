@@ -1,39 +1,34 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>100 дней — Supabase sync</title>
   <style>
-    body{font-family:Arial,Helvetica,sans-serif;display:flex;flex-direction:column;align-items:center;margin:0;padding:0 10px;min-height:100vh;background:#f5f5f5;box-sizing:border-box}
-    h1{margin:20px 0 10px}
+    :root{--red:#dc3545;--green:#28a745;--blue:#007BFF;--blue-dark:#0056b3}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:0 10px;background:#f5f5f5}
+    h1{margin:20px 0}
     #counter{font-size:5rem;margin:10px 0}
-    #todayDate{margin-bottom:20px;font-size:1.1rem;color:#555}
+    #todayDate{margin-bottom:20px;font-size:1rem;color:#555}
     .buttons{display:flex;gap:12px;margin-bottom:20px}
-    button{padding:12px 24px;font-size:1.1rem;border:none;border-radius:8px;cursor:pointer;background:#007BFF;color:#fff;transition:background .3s}
-    button:hover{background:#0056b3}
+    button{padding:10px 20px;font-size:1rem;border:none;border-radius:6px;cursor:pointer;background:var(--blue);color:#fff;transition:background .3s}
+    button:hover{background:var(--blue-dark)}
     button:disabled{background:#6c757d;cursor:not-allowed}
-
-    /* ‑‑‑ hamburger menu ‑‑‑ */
     #menu{position:absolute;top:12px;right:12px;display:none}
-    #hamburger{font-size:1.8rem;cursor:pointer;user-select:none}
-    #dropdown{display:none;flex-direction:column;gap:6px;background:#fff;border:1px solid #ccc;border-radius:6px;padding:8px;box-shadow:0 2px 6px rgba(0,0,0,.15);position:absolute;top:36px;right:0;z-index:100}
-    #dropdown button{background:#dc3545}
-    #dropdown button:hover{background:#bb2d3b}
-
-    /* основная таблица и формы */
+    #hamburger{font-size:1.5rem;cursor:pointer}
+    #dropdown{display:none;flex-direction:column;gap:6px;background:#fff;border:1px solid #ccc;border-radius:6px;padding:8px;box-shadow:0 2px 6px rgba(0,0,0,.15);position:absolute;top:36px;right:0;}
+    #dropdown button{background:var(--red)}
     #challengeSection{display:none;width:100%;max-width:760px}
     .activities{display:flex;flex-direction:column;gap:8px;width:100%;margin-bottom:20px}
-    .activity-row{display:grid;grid-template-columns:1fr 60px 110px 30px;align-items:center;column-gap:8px}
+    .activity-row{display:grid;grid-template-columns:1fr 60px 100px 30px;align-items:center;gap:8px}
     .goal{justify-self:center;font-weight:600}
-    .status{font-size:1.3rem;justify-self:center}
-    .red{color:#dc3545}
-    .green{color:#28a745}
+    .status{font-size:1.2rem;justify-self:center}
+    .red{color:var(--red)} .green{color:var(--green)}
     select{width:100%;padding:4px}
-
-    #percent{font-size:1.2rem;font-weight:600;margin:10px 0 20px;align-self:flex-start}
+    #percent{font-size:1.15rem;font-weight:600;margin:10px 0}
     table{border-collapse:collapse;width:100%;background:#fff;margin-bottom:40px}
-    th,td{border:1px solid #ccc;padding:6px 8px;text-align:center;font-size:.95rem}
+    th,td{border:1px solid #ccc;padding:6px 8px;text-align:center}
     th{background:#e9e9e9}
     tr:nth-child(even){background:#fafafa}
     tfoot td{font-weight:700;background:#f0f0f0}
@@ -41,84 +36,177 @@
 </head>
 <body>
 <h1>Челлендж 100 дней</h1>
-<!-- hamburger menu -->
 <div id="menu">
   <span id="hamburger">☰</span>
   <div id="dropdown">
     <button id="stopBtn">Остановить</button>
   </div>
 </div>
-
 <div id="counter" style="display:none;">100</div>
 <div id="todayDate"></div>
 <div class="buttons">
   <button id="startBtn">Start</button>
 </div>
-
 <div id="challengeSection">
   <div class="activities" id="activities">
-    <div class="activity-row"><label>Евстигней свои песни</label><span class="goal">2 ч</span><select id="sel1"></select><span id="st1" class="status red">❌</span></div>
-    <div class="activity-row"><label>Евстигней кавера</label><span class="goal">2 ч</span><select id="sel2"></select><span id="st2" class="status red">❌</span></div>
-    <div class="activity-row"><label>VOZDUH продажи</label><span class="goal">2 ч</span><select id="sel3"></select><span id="st3" class="status red">❌</span></div>
-    <div class="activity-row"><label>VOZDUH продакшн</label><span class="goal">2 ч</span><select id="sel4"></select><span id="st4" class="status red">❌</span></div>
-    <div class="activity-row"><label>сербский язык</label><span class="goal">1 ч</span><select id="sel5"></select><span id="st5" class="status red">❌</span></div>
-    <div class="activity-row"><label>личные</label><span class="goal">2 ч</span><select id="sel6"></select><span id="st6" class="status red">❌</span></div>
-    <div class="activity-row"><label>спорт</label><span class="goal">1 ч</span><select id="sel7"></select><span id="st7" class="status red">❌</span></div>
+    <div class="activity-row"><label>Евстигней свои песни</label><span class="goal">2 ч</span><select id="sel1"></select><span id="st1" class="status red">❌</span></div>
+    <div class="activity-row"><label>Евстигней кавера</label><span class="goal">2 ч</span><select id="sel2"></select><span id="st2" class="status red">❌</span></div>
+    <div class="activity-row"><label>VOZDUH продажи</label><span class="goal">2 ч</span><select id="sel3"></select><span id="st3" class="status red">❌</span></div>
+    <div class="activity-row"><label>VOZDUH продакшн</label><span class="goal">2 ч</span><select id="sel4"></select><span id="st4" class="status red">❌</span></div>
+    <div class="activity-row"><label>сербский язык</label><span class="goal">1 ч</span><select id="sel5"></select><span id="st5" class="status red">❌</span></div>
+    <div class="activity-row"><label>личные</label><span class="goal">2 ч</span><select id="sel6"></select><span id="st6" class="status red">❌</span></div>
+    <div class="activity-row"><label>спорт</label><span class="goal">1 ч</span><select id="sel7"></select><span id="st7" class="status red">❌</span></div>
   </div>
   <div id="percent">0 %</div>
   <table id="historyTbl" style="display:none"></table>
 </div>
-
 <script type="module">
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-const SUPABASE_URL="https://kubjftkcofdibtcbcivt.supabase.co";
-const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YmpmdGtjb2ZkaWJ0Y2JjaXZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzODUyNzcsImV4cCI6MjA2Mzk2MTI3N30.pfljOMGLfRvhtnQ6D2tSgm_AMrOVwMja1uI3T6TTub8";
-const sb=createClient(SUPABASE_URL,SUPABASE_KEY);
-const TABLE="challenge_state",ROW_ID=1;
-const DAY_MS=86400000,MAX_UNITS=100;
-const LABELS=["Евстигней свои песни","Евстигней кавера","VOZDUH продажи","VOZDUH продакшн","сербский язык","личные","спорт"];
-const GOALS=[2,2,2,2,1,2,1];
-const ZERO=()=>({sel1:0,sel2:0,sel3:0,sel4:0,sel5:0,sel6:0,sel7:0});
-const DEFAULT_STATE=()=>({challengeStart:null,lastUnitIndex:null,activities:ZERO(),history:{}});
 
-/* DOM refs */
-const $=id=>document.getElementById(id);
-const counterEl=$("counter"),startBtn=$("startBtn"),stopBtn=$("stopBtn"),hamburger=$("hamburger"),dropdown=$("dropdown"),menu=$("menu"),percentEl=$("percent"),todayEl=$("todayDate"),historyTbl=$("historyTbl"),section=$("challengeSection");
-function fillSelects(){const opts=Array.from({length:13},(_,i)=>`<option value="${i}">${i}</option>`).join('');document.querySelectorAll('#activities select').forEach(s=>s.innerHTML=opts);} 
-function showDate(){todayEl.textContent=new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});} 
+const SUPABASE_URL = "https://kubjftkcofdibtcbcivt.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YmpmdGtjb2ZkaWJ0Y2JjaXZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzODUyNzcsImV4cCI6MjA2Mzk2MTI3N30.pfljOMGLfRvhtnQ6D2tSgm_AMrOVwMja1uI3T6TTub8";
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+const ROW_ID = 1; // фиксированный ID для единственной записи в таблице
+
+const TOTAL = 100;
+const DAY_MS = 86400000;
+const LABELS = ["Евстигней свои песни","Евстигней кавера","VOZDUH продажи","VOZDUH продакшн","сербский язык","личные","спорт"];
+const GOALS = [2,2,2,2,1,2,1];
+const ZERO = () => ({sel1:0,sel2:0,sel3:0,sel4:0,sel5:0,sel6:0,sel7:0});
+const DEFAULT = () => ({
+  startISO: null,
+  lastProcessedISO: null,
+  activities: ZERO(),
+  history: {}
+});
 
 /* State */
-let state=DEFAULT_STATE();
-const normalize=s=>{const b=DEFAULT_STATE();return {...b,...s,activities:{...b.activities,...(s.activities||{})},history:s.history||{}}};
+let state = DEFAULT();
 
-async function loadState(){const {data,error}=await sb.from(TABLE).select('state').eq('id',ROW_ID).maybeSingle();if(error)console.error(error);if(data?.state)state=normalize(data.state);}
-const saveState=()=>sb.from(TABLE).upsert({id:ROW_ID,state});
+/* DOM refs */
+const $ = id => document.getElementById(id);
+const counter = $("counter"), startBtn = $("startBtn"), stopBtn = $("stopBtn"),
+      hamburger = $("hamburger"), dropdown = $("dropdown"), menu = $("menu"),
+      percent = $("percent"), todayLbl = $("todayDate"), historyTbl = $("historyTbl"), section = $("challengeSection");
 
-function idx(){return state.challengeStart===null?null:Math.floor((Date.now()-state.challengeStart)/DAY_MS);} 
-const labelOf=i=>new Date(state.challengeStart+i*DAY_MS).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'});
+const selects = document.querySelectorAll('#activities select');
 
-function addRow(l,d){state.history[l]=d;}
-function catchUp(){if(state.challengeStart===null)return;const now=Math.min(idx(),MAX_UNITS-1);if(state.lastUnitIndex===null){state.lastUnitIndex=now;return;}if(now>state.lastUnitIndex){if(!state.history[labelOf(state.lastUnitIndex)])addRow(labelOf(state.lastUnitIndex),{...state.activities});for(let u=state.lastUnitIndex+1;u<=now;u++)addRow(labelOf(u),ZERO());state.activities=ZERO();state.lastUnitIndex=now;}}
-function rollover(){if(state.challengeStart===null)return;const cur=Math.min(idx(),MAX_UNITS);if(state.lastUnitIndex===null)state.lastUnitIndex=cur;if(cur>state.lastUnitIndex){addRow(labelOf(state.lastUnitIndex),{...state.activities});for(let u=state.lastUnitIndex+1;u<cur;u++)addRow(labelOf(u),ZERO());state.activities=ZERO();state.lastUnitIndex=cur;saveState();}if(cur>=MAX_UNITS){state.challengeStart=null;saveState();}}
+function fillSelects(){
+  const opts = Array.from({length:13},(_,i)=>`<option value="${i}">${i}</option>`).join('');
+  selects.forEach(s => s.innerHTML = opts);
+}
 
-function updateStatusAndPercent(){let done=0;for(let i=1;i<=7;i++){const v=state.activities['sel'+i]||0;const icon=$("st"+i);if(v>=GOALS[i-1]){icon.textContent='✅';icon.className='status green';done++;}else{icon.textContent='❌';icon.className='status red';}}percentEl.textContent=Math.round(done/7*100)+' %';}
+/* Date helpers */
+const todayISO = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+const diff = (from,to) => Math.floor((new Date(to)-new Date(from))/DAY_MS);
 
-function render(){const left=state.challengeStart!==null?Math.max(0,MAX_UNITS-idx()):null;menu.style.display=state.challengeStart!==null?'block':'none';dropdown.style.display='none';
-  if(state.challengeStart!==null){counterEl.textContent=left;counterEl.style.display='block';startBtn.style.display='none';section.style.display='block';}
-  else{counterEl.style.display='none';startBtn.style.display='inline-block';section.style.display=Object.keys(state.history).length?'block':'none';}
-  LABELS.forEach((_l,i)=>$("sel"+(i+1)).value=state.activities['sel'+(i+1)]);
-  updateStatusAndPercent();renderHistory();showDate();}
+/* Supabase IO */
+async function load(){
+  const { data, error } = await sb.from("challenge_state").select('state').eq('id',1).maybeSingle();
+  if(error) console.error(error);
+  if(data?.state){
+    const saved = data.state;
+    state = { ...DEFAULT(), ...saved };
+  }
+}
+async function save(){
+  // Используем upsert, чтобы полностью заменить запись
+  const { error } = await sb.from("challenge_state").upsert({ id: ROW_ID, state });
+  if(error) console.error('save error', error.message || error);
+}
 
-function renderHistory(){const ks=Object.keys(state.history);if(!ks.length){historyTbl.style.display='none';return;}historyTbl.style.display='table';let html='<thead><tr><th>Дата</th>'+LABELS.map(l=>`<th>${l}</th>`).join('')+'<th>%</th></tr></thead><tbody>';const sorted=[...ks].sort((a,b)=>new Date(a)-new Date(b));sorted.forEach(lbl=>{const row=state.history[lbl];let done=0;LABELS.forEach((_x,i)=>{if((row['sel'+(i+1)]||0)>=GOALS[i])done++;});html+=`<tr><td>${lbl}</td>`+LABELS.map((_x,i)=>`<td>${row['sel'+(i+1)]??0}</td>`).join('')+`<td>${Math.round(done/7*100)}%</td></tr>`;});html+='</tbody>';historyTbl.innerHTML=html;}
+/* Rollover logic */
+async function ensureRollover(){
+  if(!state.startISO) return;
+  const today = todayISO();
+  // Выполняем только один раз в день
+  if(state.lastProcessedISO === today) return;
+  // Вычисляем дату прошедшего дня (yesterday)
+  const [y,m,d] = today.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate() - 1);
+  const yesterday = dt.toISOString().split('T')[0];
 
-function attach(){startBtn.addEventListener('click',async()=>{state=normalize({challengeStart:Date.now(),lastUnitIndex:0});await saveState();render();});stopBtn.addEventListener('click',async()=>{state=DEFAULT_STATE();await saveState();render();});hamburger.addEventListener('click',()=>{dropdown.style.display=dropdown.style.display==='flex'?'none':'flex';});document.addEventListener('click',e=>{if(!menu.contains(e.target))dropdown.style.display='none';});document.querySelectorAll('#activities select').forEach((s,idx)=>s.addEventListener('change',async()=>{state.activities['sel'+(idx+1)]=parseInt(s.value,10);updateStatusAndPercent();await saveState();}));}
+  // Сохраняем активность именно за прошедший день
+  state.history[yesterday] = { ...state.activities };
+  // Сброс активности для нового дня
+  state.activities = ZERO();
+  // Обновляем метку последней обработки
+  state.lastProcessedISO = today;
+  await save();
+}
 
+/* UI update */
+function updateStatus(){
+  let done = 0;
+  LABELS.forEach((_,i)=>{
+    const val = state.activities['sel'+(i+1)]||0;
+    const icon = $("st"+(i+1));
+    if(val>=GOALS[i]){ icon.textContent='✅'; icon.className='status green'; done++; }
+    else{ icon.textContent='❌'; icon.className='status red'; }
+  });
+  percent.textContent = Math.round(done/7*100)+' %';
+}
+
+function renderHistory(){
+  const days = Object.keys(state.history);
+  if(!days.length){ historyTbl.style.display='none'; return; }
+  historyTbl.style.display='table';
+  let html = '<thead><tr><th>Дата</th>'+LABELS.map(l=>`<th>${l}</th>`).join('')+'<th>%</th></tr></thead><tbody>';
+  days.sort((a,b)=>new Date(a)-new Date(b)).forEach(d=>{
+    const row = state.history[d]; let done=0;
+    LABELS.forEach((_,i)=>{ if((row['sel'+(i+1)]||0)>=GOALS[i]) done++; });
+    html+=`<tr><td>${d}</td>`+LABELS.map((_,i)=>`<td>${row['sel'+(i+1)]||0}</td>`).join('')+`<td>${Math.round(done/7*100)}%</td></tr>`;
+  });
+  html+='</tbody>';
+  historyTbl.innerHTML = html;
+}
+
+function paint(){
+  todayLbl.textContent = new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+  if(state.startISO){
+    const elapsed = diff(state.startISO, todayISO());
+    counter.textContent = Math.max(0, TOTAL - elapsed);
+    counter.style.display='block'; menu.style.display='block'; startBtn.style.display='none';
+  } else {
+    counter.style.display='none'; menu.style.display='none'; startBtn.style.display='inline-block';
+  }
+  section.style.display = state.startISO || Object.keys(state.history).length?'block':'none';
+  selects.forEach((s,i)=> s.value = state.activities['sel'+(i+1)]||0);
+  updateStatus(); renderHistory();
+}
+
+/* Events */
+hamburger.onclick = ()=> dropdown.style.display = dropdown.style.display==='flex'?'none':'flex';
+window.onclick = e => { if(!menu.contains(e.target)) dropdown.style.display='none'; };
+startBtn.onclick = async ()=>{
+  state = DEFAULT();
+  state.startISO = todayISO();
+  state.lastProcessedISO = todayISO();
+  await save();
+  paint();
+};
+stopBtn.onclick = async ()=>{
+  // При остановке удаляем запись из базы, очищаем состояние
+  const { error } = await sb.from("challenge_state").delete().eq('id', ROW_ID);
+  if(error) console.error('delete error', error.message || error);
+  state = DEFAULT();
+  paint();
+};
+selects.forEach((s,i)=> s.onchange = async ()=>{ state.activities['sel'+(i+1)] = +s.value; updateStatus(); await save(); });
+
+/* Init */
 fillSelects();
-await loadState();
-catchUp();
-render();
-attach();
-setInterval(()=>{if(state.challengeStart!==null){rollover();render();}},60000);
+await load();
+await ensureRollover();
+paint();
+setInterval(async()=>{ if(state.startISO){ await ensureRollover(); paint(); } },60000);
 </script>
 </body>
 </html>
