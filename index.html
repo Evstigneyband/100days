@@ -66,21 +66,14 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = "https://kubjftkcofdibtcbcivt.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1YmpmdGtjb2ZkaWJ0Y2JjaXZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgzODUyNzcsImV4cCI6MjA2Mzk2MTI3N30.pfljOMGLfRvhtnQ6D2tSgm_AMrOVwMja1uI3T6TTub8";
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-const ROW_ID = 1; // фиксированный ID для единственной записи в таблице
+const ROW_ID = 1;
 
 const TOTAL = 100;
 const DAY_MS = 86400000;
 const LABELS = ["Евстигней свои песни","Евстигней кавера","VOZDUH продажи","VOZDUH продакшн","сербский язык","личные","спорт"];
 const GOALS = [2,2,2,2,1,2,1];
 const ZERO = () => ({sel1:0,sel2:0,sel3:0,sel4:0,sel5:0,sel6:0,sel7:0});
-const DEFAULT = () => ({
-  startISO: null,
-  lastProcessedISO: null,
-  activities: ZERO(),
-  history: {}
-});
-
-/* State */
+const DEFAULT = () => ({startISO:null,lastProcessedISO:null,activities:ZERO(),history:{}});
 let state = DEFAULT();
 
 /* DOM refs */
@@ -88,125 +81,93 @@ const $ = id => document.getElementById(id);
 const counter = $("counter"), startBtn = $("startBtn"), stopBtn = $("stopBtn"),
       hamburger = $("hamburger"), dropdown = $("dropdown"), menu = $("menu"),
       percent = $("percent"), todayLbl = $("todayDate"), historyTbl = $("historyTbl"), section = $("challengeSection");
-
 const selects = document.querySelectorAll('#activities select');
 
 function fillSelects(){
   const opts = Array.from({length:13},(_,i)=>`<option value="${i}">${i}</option>`).join('');
-  selects.forEach(s => s.innerHTML = opts);
+  selects.forEach(s=>s.innerHTML=opts);
 }
 
 /* Date helpers */
-const todayISO = () => {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-};
+function formatISO(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+const todayISO = () => formatISO(new Date());
 const diff = (from,to) => Math.floor((new Date(to)-new Date(from))/DAY_MS);
 
-/* Supabase IO */
+/* Supabase */
 async function load(){
-  const { data, error } = await sb.from("challenge_state").select('state').eq('id',1).maybeSingle();
+  const {data,error}=await sb.from("challenge_state").select('state').eq('id',ROW_ID).maybeSingle();
   if(error) console.error(error);
-  if(data?.state){
-    const saved = data.state;
-    state = { ...DEFAULT(), ...saved };
-  }
+  if(data?.state) state={...DEFAULT(),...data.state};
 }
 async function save(){
-  // Используем upsert, чтобы полностью заменить запись
-  const { error } = await sb.from("challenge_state").upsert({ id: ROW_ID, state });
-  if(error) console.error('save error', error.message || error);
+  const {error}=await sb.from("challenge_state").upsert({id:ROW_ID,state});
+  if(error) console.error('save error',error.message||error);
 }
 
-/* Rollover logic */
+/* Rollover */
 async function ensureRollover(){
   if(!state.startISO) return;
-  const today = todayISO();
-  // Выполняем только один раз в день
-  if(state.lastProcessedISO === today) return;
-  // Вычисляем дату прошедшего дня (yesterday)
-  const [y,m,d] = today.split('-').map(Number);
-  const dt = new Date(y, m-1, d);
-  dt.setDate(dt.getDate() - 1);
-  const yesterday = dt.toISOString().split('T')[0];
-
-  // Сохраняем активность именно за прошедший день
-  state.history[yesterday] = { ...state.activities };
-  // Сброс активности для нового дня
-  state.activities = ZERO();
-  // Обновляем метку последней обработки
-  state.lastProcessedISO = today;
+  const today=todayISO();
+  if(state.lastProcessedISO===today) return;
+  const yest=new Date(); yest.setHours(0,0,0,0); yest.setDate(yest.getDate()-1);
+  const yesterday=formatISO(yest);
+  state.history[yesterday]={...state.activities};
+  state.activities=ZERO();
+  state.lastProcessedISO=today;
   await save();
 }
 
-/* UI update */
+/* UI */
 function updateStatus(){
-  let done = 0;
+  let done=0;
   LABELS.forEach((_,i)=>{
-    const val = state.activities['sel'+(i+1)]||0;
-    const icon = $("st"+(i+1));
-    if(val>=GOALS[i]){ icon.textContent='✅'; icon.className='status green'; done++; }
-    else{ icon.textContent='❌'; icon.className='status red'; }
+    const val=state.activities['sel'+(i+1)]||0;
+    const icon=$("st"+(i+1));
+    if(val>=GOALS[i]){icon.textContent='✅';icon.className='status green';done++;}
+    else{icon.textContent='❌';icon.className='status red';}
   });
-  percent.textContent = Math.round(done/7*100)+' %';
+  percent.textContent=Math.round(done/7*100)+' %';
 }
-
 function renderHistory(){
-  const days = Object.keys(state.history);
-  if(!days.length){ historyTbl.style.display='none'; return; }
+  const days=Object.keys(state.history);
+  if(!days.length){historyTbl.style.display='none';return;}
   historyTbl.style.display='table';
-  let html = '<thead><tr><th>Дата</th>'+LABELS.map(l=>`<th>${l}</th>`).join('')+'<th>%</th></tr></thead><tbody>';
+  let html='<thead><tr><th>Дата</th>'+LABELS.map(l=>`<th>${l}</th>`).join('')+'<th>%</th></tr></thead><tbody>';
   days.sort((a,b)=>new Date(a)-new Date(b)).forEach(d=>{
-    const row = state.history[d]; let done=0;
-    LABELS.forEach((_,i)=>{ if((row['sel'+(i+1)]||0)>=GOALS[i]) done++; });
+    const row=state.history[d];let done=0;
+    LABELS.forEach((_,i)=>{if((row['sel'+(i+1)]||0)>=GOALS[i])done++;});
     html+=`<tr><td>${d}</td>`+LABELS.map((_,i)=>`<td>${row['sel'+(i+1)]||0}</td>`).join('')+`<td>${Math.round(done/7*100)}%</td></tr>`;
   });
-  html+='</tbody>';
-  historyTbl.innerHTML = html;
+  html+='</tbody>';historyTbl.innerHTML=html;
 }
-
 function paint(){
-  todayLbl.textContent = new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+  todayLbl.textContent=new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
   if(state.startISO){
-    const elapsed = diff(state.startISO, todayISO());
-    counter.textContent = Math.max(0, TOTAL - elapsed);
-    counter.style.display='block'; menu.style.display='block'; startBtn.style.display='none';
-  } else {
-    counter.style.display='none'; menu.style.display='none'; startBtn.style.display='inline-block';
+    counter.textContent=Math.max(0,TOTAL-diff(state.startISO,todayISO()));
+    counter.style.display='block';menu.style.display='block';startBtn.style.display='none';
+  }else{
+    counter.style.display='none';menu.style.display='none';startBtn.style.display='inline-block';
   }
-  section.style.display = state.startISO || Object.keys(state.history).length?'block':'none';
-  selects.forEach((s,i)=> s.value = state.activities['sel'+(i+1)]||0);
-  updateStatus(); renderHistory();
+  section.style.display=state.startISO||Object.keys(state.history).length?'block':'none';
+  selects.forEach((s,i)=>s.value=state.activities['sel'+(i+1)]||0);
+  updateStatus();renderHistory();
 }
 
 /* Events */
-hamburger.onclick = ()=> dropdown.style.display = dropdown.style.display==='flex'?'none':'flex';
-window.onclick = e => { if(!menu.contains(e.target)) dropdown.style.display='none'; };
-startBtn.onclick = async ()=>{
-  state = DEFAULT();
-  state.startISO = todayISO();
-  state.lastProcessedISO = todayISO();
-  await save();
-  paint();
-};
-stopBtn.onclick = async ()=>{
-  // При остановке удаляем запись из базы, очищаем состояние
-  const { error } = await sb.from("challenge_state").delete().eq('id', ROW_ID);
-  if(error) console.error('delete error', error.message || error);
-  state = DEFAULT();
-  paint();
-};
-selects.forEach((s,i)=> s.onchange = async ()=>{ state.activities['sel'+(i+1)] = +s.value; updateStatus(); await save(); });
+hamburger.onclick=()=>dropdown.style.display=dropdown.style.display==='flex'?'none':'flex';
+window.onclick=e=>{if(!menu.contains(e.target))dropdown.style.display='none';};
+startBtn.onclick=async()=>{state=DEFAULT();state.startISO=todayISO();state.lastProcessedISO=todayISO();await save();paint();};
+stopBtn.onclick=async()=>{const {error}=await sb.from("challenge_state").delete().eq('id',ROW_ID);if(error) console.error('delete error',error);state=DEFAULT();paint();};
+selects.forEach((s,i)=>s.onchange=async()=>{state.activities['sel'+(i+1)]=+s.value;updateStatus();await save();});
 
 /* Init */
 fillSelects();
 await load();
 await ensureRollover();
 paint();
-setInterval(async()=>{ if(state.startISO){ await ensureRollover(); paint(); } },60000);
+setInterval(async()=>{if(state.startISO){await ensureRollover();paint();}},60000);
 </script>
 </body>
 </html>
