@@ -34,7 +34,10 @@
     tr:nth-child(even){background:#fafafa}
     tfoot td{font-weight:700;background:#f0f0f0}
     @media(max-width:600px){
-      #historyWrapper table{table-layout:auto;min-width:900px;width:900px;}
+      /* убираем горизонтальный скролл и просто ещё сильнее уменьшаем шрифт */
+      #historyWrapper table{table-layout:fixed;width:100%;}
+      th,td{font-size:.55rem;padding:2px;}
+    }
       th,td{font-size:.65rem;padding:3px}
     }}
   </style>
